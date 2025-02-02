@@ -72,7 +72,8 @@ int lastBtnAdd10State = HIGH;
 
 void setup() {
   // Initialize serial monitor for debugging
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial.println("Bedtime counter hello.");
 
   // Initialize button pins as input with pullup
   pinMode(BTN_START_PIN, INPUT_PULLUP);
@@ -83,7 +84,8 @@ void setup() {
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   
-  // Initialize initial display
+  // Show initial 1-minute value
+  Serial.println("Initializing display with 1 minute.");
   updateDisplay();
 }
 
