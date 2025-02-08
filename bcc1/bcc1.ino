@@ -12,8 +12,8 @@
 // Maximum time in seconds (64 minutes)
 #define MAX_TIME (64 * 60)
 
-// Maximum LED brightness (1/3 of 255)
-#define MAX_BRIGHTNESS 85
+// Maximum LED brightness (1/12 of 255)
+#define MAX_BRIGHTNESS 20
 
 // Simple debounce delay in milliseconds
 #define DEBOUNCE_DELAY 50
