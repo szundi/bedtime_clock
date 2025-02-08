@@ -158,7 +158,7 @@ void loop() {
       
       if (pressDuration >= LONG_PRESS_TIME) {
         running = false;
-        remainingTime = 60;  // Restore to 1 minute
+        originalTime = presetTime =remainingTime = 60;  // Restore to 1 minute
         Serial.println("Long press: Resetting timer to 1 minute.");
         updateDisplay();
       } else {
