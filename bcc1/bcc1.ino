@@ -60,9 +60,9 @@ bool detectRisingEdge(uint8_t pin, int &lastState, unsigned long &unused) {
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // Global timer variables (in seconds)
-unsigned long presetTime = 60;     // initial preset time (can be increased before starting)
-unsigned long originalTime = 60;   // captures preset time when clock first started
-unsigned long remainingTime = 60;  // remaining time (in seconds)
+unsigned long presetTime = 1;      // initial preset time (changed from 60 to 1)
+unsigned long originalTime = 1;    // captures preset time when clock first started (changed from 60 to 1)
+unsigned long remainingTime = 1;   // remaining time (in seconds) (changed from 60 to 1)
 
 // Timing for countdown update
 unsigned long previousMillis = 0;
@@ -83,14 +83,23 @@ unsigned long btnStartPressTime = 0;
 int lastBtnAddMinState = HIGH;
 int lastBtnAdd10State = HIGH;
 
-// Add these variables after other global variables
+// Replace the single snake variables with arrays for 4 snakes
+const int NUM_SNAKES = 4;
 const int MIN_SNAKE_LENGTH = 2;
 const int MAX_SNAKE_LENGTH = 7;
-int snakeLength;  // Current snake length
-int snakeX[MAX_SNAKE_LENGTH];  // X positions of snake segments (use max possible size)
-int snakeY[MAX_SNAKE_LENGTH];  // Y positions of snake segments (use max possible size)
-int dirX = 1;             // Current X direction (-1, 0, or 1)
-int dirY = 0;             // Current Y direction (-1, 0, or 1)
+int snakeLength[NUM_SNAKES];  // Current length of each snake
+int snakeX[NUM_SNAKES][MAX_SNAKE_LENGTH];  // X positions for each snake
+int snakeY[NUM_SNAKES][MAX_SNAKE_LENGTH];  // Y positions for each snake
+int dirX[NUM_SNAKES];  // X direction for each snake
+int dirY[NUM_SNAKES];  // Y direction for each snake
+
+// Colors for each snake (R,G,B)
+const uint8_t snakeColors[NUM_SNAKES][3] = {
+    {0, 0, MAX_BRIGHTNESS},    // Blue snake
+    {0, MAX_BRIGHTNESS, 0},    // Green snake
+    {MAX_BRIGHTNESS, 0, 0},    // Red snake
+    {MAX_BRIGHTNESS, MAX_BRIGHTNESS, MAX_BRIGHTNESS}  // White snake
+};
 
 // Add this with other global variables at the top
 bool firstTime = true;  // For snake animation initialization
@@ -121,11 +130,15 @@ void setup() {
   // Initialize random seed
   randomSeed(analogRead(0));
   
-  // Initialize snake position (starting in top-left corner)
-  snakeLength = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
-  for (int i = 0; i < snakeLength; i++) {
-    snakeX[i] = i;
-    snakeY[i] = 0;
+  // Initialize all snakes
+  for (int s = 0; s < NUM_SNAKES; s++) {
+    snakeLength[s] = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
+    for (int i = 0; i < snakeLength[s]; i++) {
+      snakeX[s][i] = i;
+      snakeY[s][i] = s * 2;  // Start snakes at different Y positions
+    }
+    dirX[s] = 1;
+    dirY[s] = 0;
   }
   
   updateDisplay();
@@ -275,14 +288,17 @@ void loop() {
 
 void handleFinishFlash() {
   if (firstTime) {
-    // Get new random seed each time snake starts
-    randomSeed(analogRead(0) + millis());  // Add millis() for even more randomness
-    // Initialize random snake length when animation starts
-    snakeLength = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
-    // Initialize snake position (starting in top-left corner)
-    for (int i = 0; i < snakeLength; i++) {
-      snakeX[i] = i;
-      snakeY[i] = 0;
+    // Get new random seed each time snakes start
+    randomSeed(analogRead(0) + millis());
+    // Initialize random snake lengths when animation starts
+    for (int s = 0; s < NUM_SNAKES; s++) {
+      snakeLength[s] = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
+      for (int i = 0; i < snakeLength[s]; i++) {
+        snakeX[s][i] = i;
+        snakeY[s][i] = s * 2;  // Start snakes at different Y positions
+      }
+      dirX[s] = 1;
+      dirY[s] = 0;
     }
     firstTime = false;
   }
@@ -291,38 +307,45 @@ void handleFinishFlash() {
   if (currentMillis - lastFlashMillis >= 100) {
     lastFlashMillis = currentMillis;
     
-    // 25% chance to change direction
-    if (random(100) < 25) {
-      int newDir = random(4);
-      switch(newDir) {
-        case 0: dirX = 1; dirY = 0; break;
-        case 1: dirX = -1; dirY = 0; break;
-        case 2: dirX = 0; dirY = 1; break;
-        case 3: dirX = 0; dirY = -1; break;
-      }
-    }
-    
-    // Move snake segments (start from tail)
-    for (int i = 0; i < snakeLength - 1; i++) {
-      snakeX[i] = snakeX[i + 1];
-      snakeY[i] = snakeY[i + 1];
-    }
-    
-    // Move head
-    snakeX[snakeLength-1] = (snakeX[snakeLength-1] + dirX + 8) % 8;
-    snakeY[snakeLength-1] = (snakeY[snakeLength-1] + dirY + 8) % 8;
-    
     // Clear display
     for (int i = 0; i < NUM_LEDS; i++) {
       strip.setPixelColor(i, 0);
     }
-    
-    // Draw snake with gradient brightness
-    for (int i = 0; i < snakeLength; i++) {
-      int pos = snakeY[i] * 8 + snakeX[i];
-      // Calculate brightness - brightest at head (i == snakeLength-1), dimmest at tail (i == 0)
-      uint8_t brightness = (uint8_t)(MAX_BRIGHTNESS * (i + 1) / snakeLength);
-      strip.setPixelColor(pos, strip.Color(brightness, 0, 0));
+
+    // Update and draw each snake
+    for (int s = 0; s < NUM_SNAKES; s++) {
+      // 25% chance to change direction for each snake
+      if (random(100) < 25) {
+        int newDir = random(4);
+        switch(newDir) {
+          case 0: dirX[s] = 1; dirY[s] = 0; break;
+          case 1: dirX[s] = -1; dirY[s] = 0; break;
+          case 2: dirX[s] = 0; dirY[s] = 1; break;
+          case 3: dirX[s] = 0; dirY[s] = -1; break;
+        }
+      }
+      
+      // Move snake segments (start from tail)
+      for (int i = 0; i < snakeLength[s] - 1; i++) {
+        snakeX[s][i] = snakeX[s][i + 1];
+        snakeY[s][i] = snakeY[s][i + 1];
+      }
+      
+      // Move head
+      snakeX[s][snakeLength[s]-1] = (snakeX[s][snakeLength[s]-1] + dirX[s] + 8) % 8;
+      snakeY[s][snakeLength[s]-1] = (snakeY[s][snakeLength[s]-1] + dirY[s] + 8) % 8;
+      
+      // Draw snake with gradient brightness
+      for (int i = 0; i < snakeLength[s]; i++) {
+        int pos = snakeY[s][i] * 8 + snakeX[s][i];
+        // Calculate brightness - brightest at head, dimmest at tail
+        uint8_t brightness = (uint8_t)(MAX_BRIGHTNESS * (i + 1) / snakeLength[s]);
+        strip.setPixelColor(pos, strip.Color(
+          (snakeColors[s][0] * brightness) / MAX_BRIGHTNESS,
+          (snakeColors[s][1] * brightness) / MAX_BRIGHTNESS,
+          (snakeColors[s][2] * brightness) / MAX_BRIGHTNESS
+        ));
+      }
     }
     
     strip.show();
