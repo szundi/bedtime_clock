@@ -83,6 +83,18 @@ unsigned long btnStartPressTime = 0;
 int lastBtnAddMinState = HIGH;
 int lastBtnAdd10State = HIGH;
 
+// Add these variables after other global variables
+const int MIN_SNAKE_LENGTH = 2;
+const int MAX_SNAKE_LENGTH = 7;
+int snakeLength;  // Current snake length
+int snakeX[MAX_SNAKE_LENGTH];  // X positions of snake segments (use max possible size)
+int snakeY[MAX_SNAKE_LENGTH];  // Y positions of snake segments (use max possible size)
+int dirX = 1;             // Current X direction (-1, 0, or 1)
+int dirY = 0;             // Current Y direction (-1, 0, or 1)
+
+// Add this with other global variables at the top
+bool firstTime = true;  // For snake animation initialization
+
 void setup() {
   // Initialize serial monitor for debugging
   Serial.begin(115200);
@@ -105,6 +117,17 @@ void setup() {
   
   // Show initial 1-minute value
   Serial.println("Initializing display with 1 minute.");
+
+  // Initialize random seed
+  randomSeed(analogRead(0));
+  
+  // Initialize snake position (starting in top-left corner)
+  snakeLength = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
+  for (int i = 0; i < snakeLength; i++) {
+    snakeX[i] = i;
+    snakeY[i] = 0;
+  }
+  
   updateDisplay();
 }
 
@@ -135,9 +158,10 @@ void loop() {
         digitalRead(BTN_ADD_MIN_PIN) == LOW || 
         digitalRead(BTN_ADD_10_PIN) == LOW) {
       countdownFinished = false;
+      firstTime = true;  // Reset the firstTime flag for next animation
       Serial.println("Flash stopped by button press");
-      updateDisplay();  // Restore normal display
-      delay(DEBOUNCE_DELAY);  // Simple debounce to avoid immediate re-trigger
+      updateDisplay();
+      delay(DEBOUNCE_DELAY);
       while ((digitalRead(BTN_START_PIN) == LOW || 
         digitalRead(BTN_ADD_MIN_PIN) == LOW || 
         digitalRead(BTN_ADD_10_PIN) == LOW)) {
@@ -250,18 +274,53 @@ void loop() {
 }
 
 void handleFinishFlash() {
+  if (firstTime) {
+    // Initialize random snake length when animation starts
+    snakeLength = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
+    // Initialize snake position (starting in top-left corner)
+    for (int i = 0; i < snakeLength; i++) {
+      snakeX[i] = i;
+      snakeY[i] = 0;
+    }
+    firstTime = false;
+  }
+
   unsigned long currentMillis = millis();
-  if (currentMillis - lastFlashMillis >= 500) {  // Flash every 500ms
+  if (currentMillis - lastFlashMillis >= 100) {
     lastFlashMillis = currentMillis;
-    flashState = !flashState;
     
-    for (int i = 0; i < NUM_LEDS; i++) {
-      if (flashState) {
-        strip.setPixelColor(i, strip.Color(MAX_BRIGHTNESS, 0, 0));  // Red at max brightness
-      } else {
-        strip.setPixelColor(i, 0);  // Off
+    // 25% chance to change direction
+    if (random(100) < 25) {
+      int newDir = random(4);
+      switch(newDir) {
+        case 0: dirX = 1; dirY = 0; break;
+        case 1: dirX = -1; dirY = 0; break;
+        case 2: dirX = 0; dirY = 1; break;
+        case 3: dirX = 0; dirY = -1; break;
       }
     }
+    
+    // Move snake segments (start from tail)
+    for (int i = 0; i < snakeLength - 1; i++) {
+      snakeX[i] = snakeX[i + 1];
+      snakeY[i] = snakeY[i + 1];
+    }
+    
+    // Move head
+    snakeX[snakeLength-1] = (snakeX[snakeLength-1] + dirX + 8) % 8;
+    snakeY[snakeLength-1] = (snakeY[snakeLength-1] + dirY + 8) % 8;
+    
+    // Clear display
+    for (int i = 0; i < NUM_LEDS; i++) {
+      strip.setPixelColor(i, 0);
+    }
+    
+    // Draw snake
+    for (int i = 0; i < snakeLength; i++) {
+      int pos = snakeY[i] * 8 + snakeX[i];
+      strip.setPixelColor(pos, strip.Color(MAX_BRIGHTNESS, 0, 0));
+    }
+    
     strip.show();
   }
 }
