@@ -275,6 +275,8 @@ void loop() {
 
 void handleFinishFlash() {
   if (firstTime) {
+    // Get new random seed each time snake starts
+    randomSeed(analogRead(0) + millis());  // Add millis() for even more randomness
     // Initialize random snake length when animation starts
     snakeLength = random(MIN_SNAKE_LENGTH, MAX_SNAKE_LENGTH + 1);
     // Initialize snake position (starting in top-left corner)
@@ -315,10 +317,12 @@ void handleFinishFlash() {
       strip.setPixelColor(i, 0);
     }
     
-    // Draw snake
+    // Draw snake with gradient brightness
     for (int i = 0; i < snakeLength; i++) {
       int pos = snakeY[i] * 8 + snakeX[i];
-      strip.setPixelColor(pos, strip.Color(MAX_BRIGHTNESS, 0, 0));
+      // Calculate brightness - brightest at head (i == snakeLength-1), dimmest at tail (i == 0)
+      uint8_t brightness = (uint8_t)(MAX_BRIGHTNESS * (i + 1) / snakeLength);
+      strip.setPixelColor(pos, strip.Color(brightness, 0, 0));
     }
     
     strip.show();
