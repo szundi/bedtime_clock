@@ -339,7 +339,7 @@ void handleFinishFlash() {
       for (int i = 0; i < snakeLength[s]; i++) {
         int pos = snakeY[s][i] * 8 + snakeX[s][i];
         // Calculate brightness - brightest at head, dimmest at tail
-        uint8_t brightness = (uint8_t)(MAX_BRIGHTNESS * (i + 1) / snakeLength[s]);
+        float brightness = (float)MAX_BRIGHTNESS * (i + 1) / snakeLength[s];
         strip.setPixelColor(pos, strip.Color(
           (snakeColors[s][0] * brightness) / MAX_BRIGHTNESS,
           (snakeColors[s][1] * brightness) / MAX_BRIGHTNESS,
@@ -372,7 +372,7 @@ void updateDisplay() {
   // For the fractional minute, if there is space and if there are remaining seconds:
   if (fullMinutes < NUM_LEDS && secondsLeft > 0) {
     // Calculate brightness proportional to the seconds left
-    uint8_t brightness = (uint8_t)((secondsLeft / 60.0) * MAX_BRIGHTNESS);
+    float brightness = ((float)secondsLeft / 60.0) * MAX_BRIGHTNESS;
     strip.setPixelColor(fullMinutes, strip.Color(brightness, brightness, brightness));
   }
   
